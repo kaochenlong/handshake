@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0f0f1e">
+<title>手機樂器盒</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", "Segoe UI", sans-serif;
+    background: #0f0f1e;
+    color: #fff;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  #app {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 20px 80px;
+    transition: background-color 80ms ease-out;
+  }
+
+  #app.flash {
+    background: #2a2a4e;
+  }
+
+  .screen {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    width: 100%;
+    max-width: 480px;
+  }
+
+  .screen.active { display: flex; }
+
+  h1 {
+    font-size: 2.2rem;
+    margin-bottom: 14px;
+    background: linear-gradient(135deg, #ffb84d, #ff6b9d, #4dcfff);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    font-weight: 800;
+    letter-spacing: 2px;
+  }
+
+  .subtitle {
+    color: #8a8a9e;
+    margin-bottom: 40px;
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #ff6b9d, #4dcfff);
+    color: #fff;
+    border: none;
+    padding: 20px 56px;
+    font-size: 1.25rem;
+    font-weight: 700;
+    border-radius: 50px;
+    cursor: pointer;
+    box-shadow: 0 10px 32px rgba(77, 207, 255, 0.35);
+    transition: transform 120ms ease-out;
+  }
+  .btn-primary:active { transform: scale(0.96); }
+
+  .instruments {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+  }
+
+  .instrument-card {
+    background: #1c1c2e;
+    border: 2px solid transparent;
+    border-radius: 20px;
+    padding: 22px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    cursor: pointer;
+    transition: transform 120ms, background-color 120ms;
+  }
+  .instrument-card:active {
+    transform: scale(0.97);
+    background: #24243a;
+  }
+  .instrument-card[data-inst="tambourine"] { border-color: #ffb84d; }
+  .instrument-card[data-inst="triangle"]   { border-color: #c0c0d6; }
+  .instrument-card[data-inst="shaker"]     { border-color: #4dcfff; }
+
+  .instrument-card .icon {
+    width: 72px;
+    height: 72px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .instrument-card .info { text-align: left; flex: 1; }
+  .instrument-card .info h3 { font-size: 1.35rem; margin-bottom: 4px; font-weight: 700; }
+  .instrument-card .info p { color: #8a8a9e; font-size: 0.9rem; }
+
+  .play-screen .instrument-big {
+    width: 220px;
+    height: 220px;
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 80ms ease-out;
+  }
+  .play-screen .instrument-big.pulse {
+    transform: scale(1.18) rotate(-3deg);
+  }
+
+  .play-screen h2 {
+    font-size: 2rem;
+    margin-bottom: 8px;
+    font-weight: 800;
+  }
+  .play-screen .hint {
+    color: #8a8a9e;
+    margin-bottom: 28px;
+    font-size: 1rem;
+  }
+
+  .counter {
+    font-size: 1.05rem;
+    color: #4dcfff;
+    margin-bottom: 28px;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+
+  .btn-secondary {
+    background: transparent;
+    color: #aaa;
+    border: 1px solid #3a3a52;
+    padding: 11px 26px;
+    font-size: 0.95rem;
+    border-radius: 24px;
+    cursor: pointer;
+  }
+  .btn-secondary:active { background: #1c1c2e; }
+
+  .error {
+    color: #ff9e9e;
+    background: #2d1a1a;
+    border: 1px solid #5a2a2a;
+    padding: 14px 20px;
+    border-radius: 12px;
+    margin-top: 24px;
+    font-size: 0.9rem;
+    line-height: 1.7;
+    max-width: 400px;
+  }
+
+  .note {
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.75rem;
+    color: #555;
+    text-align: center;
+    padding: 0 20px;
+    line-height: 1.5;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- 首頁 -->
+  <section class="screen active" id="screen-home">
+    <h1>手機樂器盒</h1>
+    <p class="subtitle">搖動手機，讓它變成<br>鈴鼓、三角鐵、沙鈴</p>
+    <button class="btn-primary" id="btn-start">開始演奏</button>
+    <div class="error" id="error-box" style="display:none;"></div>
+  </section>
+
+  <!-- 樂器選單 -->
+  <section class="screen" id="screen-menu">
+    <h1>選一個樂器</h1>
+    <p class="subtitle">點下方卡片選擇</p>
+    <div class="instruments">
+      <div class="instrument-card" data-inst="tambourine">
+        <div class="icon">
+          <svg viewBox="0 0 72 72" width="72" height="72" aria-hidden="true">
+            <circle cx="36" cy="36" r="28" fill="#ffb84d" opacity="0.22"/>
+            <circle cx="36" cy="36" r="28" fill="none" stroke="#ffb84d" stroke-width="4"/>
+            <circle cx="10" cy="36" r="5" fill="#ffb84d"/>
+            <circle cx="62" cy="36" r="5" fill="#ffb84d"/>
+            <circle cx="36" cy="10" r="5" fill="#ffb84d"/>
+            <circle cx="36" cy="62" r="5" fill="#ffb84d"/>
+          </svg>
+        </div>
+        <div class="info">
+          <h3>鈴鼓</h3>
+          <p>清脆的鈴片搖晃聲</p>
+        </div>
+      </div>
+
+      <div class="instrument-card" data-inst="triangle">
+        <div class="icon">
+          <svg viewBox="0 0 72 72" width="72" height="72" aria-hidden="true">
+            <polygon points="36,12 64,60 8,60" fill="none" stroke="#c0c0d6" stroke-width="5" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="info">
+          <h3>三角鐵</h3>
+          <p>金屬長殘響</p>
+        </div>
+      </div>
+
+      <div class="instrument-card" data-inst="shaker">
+        <div class="icon">
+          <svg viewBox="0 0 72 72" width="72" height="72" aria-hidden="true">
+            <ellipse cx="36" cy="26" rx="20" ry="16" fill="#4dcfff" opacity="0.3"/>
+            <ellipse cx="36" cy="26" rx="20" ry="16" fill="none" stroke="#4dcfff" stroke-width="4"/>
+            <rect x="32" y="40" width="8" height="22" rx="2" fill="#4dcfff"/>
+          </svg>
+        </div>
+        <div class="info">
+          <h3>沙鈴</h3>
+          <p>細緻的沙沙聲</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 演奏模式 -->
+  <section class="screen play-screen" id="screen-play">
+    <div class="instrument-big" id="inst-big"></div>
+    <h2 id="inst-name"></h2>
+    <p class="hint">用力搖動手機</p>
+    <div class="counter" id="counter">搖動 0 次</div>
+    <button class="btn-secondary" id="btn-back">← 換一個樂器</button>
+  </section>
+
+</div>
+
+<div class="note">
+  iPhone 請確認靜音開關是關閉的，否則不會有聲音
+</div>
+
+<script>
+'use strict';
+
+/* ========== 樂器設定 ========== */
+const INSTRUMENTS = {
+  tambourine: {
+    name: '鈴鼓',
+    cooldown: 150,
+    svg: `<svg viewBox="0 0 220 220" width="220" height="220">
+      <circle cx="110" cy="110" r="90" fill="#ffb84d" opacity="0.18"/>
+      <circle cx="110" cy="110" r="90" fill="none" stroke="#ffb84d" stroke-width="9"/>
+      <circle cx="22" cy="110" r="13" fill="#ffb84d"/>
+      <circle cx="198" cy="110" r="13" fill="#ffb84d"/>
+      <circle cx="110" cy="22" r="13" fill="#ffb84d"/>
+      <circle cx="110" cy="198" r="13" fill="#ffb84d"/>
+      <circle cx="47" cy="47" r="11" fill="#ffb84d"/>
+      <circle cx="173" cy="47" r="11" fill="#ffb84d"/>
+      <circle cx="47" cy="173" r="11" fill="#ffb84d"/>
+      <circle cx="173" cy="173" r="11" fill="#ffb84d"/>
+    </svg>`
+  },
+  triangle: {
+    name: '三角鐵',
+    cooldown: 600,
+    svg: `<svg viewBox="0 0 220 220" width="220" height="220">
+      <polygon points="110,22 200,188 20,188" fill="none" stroke="#c0c0d6" stroke-width="13" stroke-linejoin="round"/>
+      <line x1="175" y1="188" x2="200" y2="188" stroke="#c0c0d6" stroke-width="13" stroke-linecap="round" opacity="0"/>
+    </svg>`
+  },
+  shaker: {
+    name: '沙鈴',
+    cooldown: 150,
+    svg: `<svg viewBox="0 0 220 220" width="220" height="220">
+      <ellipse cx="110" cy="76" rx="60" ry="48" fill="#4dcfff" opacity="0.28"/>
+      <ellipse cx="110" cy="76" rx="60" ry="48" fill="none" stroke="#4dcfff" stroke-width="9"/>
+      <rect x="96" y="120" width="28" height="78" rx="5" fill="#4dcfff"/>
+    </svg>`
+  }
+};
+
+const SHAKE_THRESHOLD = 12; // m/s²
+
+const state = {
+  audioCtx: null,
+  currentInstrument: null,
+  lastTriggerTime: 0,
+  shakeCount: 0,
+  motionListening: false,
+};
+
+/* ========== 畫面切換 ========== */
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function showError(html) {
+  const box = document.getElementById('error-box');
+  box.innerHTML = html;
+  box.style.display = 'block';
+}
+
+function clearError() {
+  const box = document.getElementById('error-box');
+  box.style.display = 'none';
+  box.innerHTML = '';
+}
+
+/* ========== 啟動：AudioContext unlock + 權限請求 ========== */
+async function handleStart() {
+  clearError();
+  try {
+    // 1. 在 user gesture 內建立 AudioContext
+    if (!state.audioCtx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) {
+        showError('你的瀏覽器不支援 Web Audio API');
+        return;
+      }
+      state.audioCtx = new AC();
+    }
+    if (state.audioCtx.state === 'suspended') {
+      await state.audioCtx.resume();
+    }
+
+    // 2. iOS 13+ 要明確請求 DeviceMotion 權限
+    if (typeof DeviceMotionEvent !== 'undefined' &&
+        typeof DeviceMotionEvent.requestPermission === 'function') {
+      const res = await DeviceMotionEvent.requestPermission();
+      if (res !== 'granted') {
+        showError('需要動作感測器權限才能搖一搖。<br>請到 設定 → Safari → 動作與方向取用 開啟');
+        return;
+      }
+    }
+
+    // 3. 掛 devicemotion 監聽（只掛一次）
+    if (!state.motionListening) {
+      if (typeof DeviceMotionEvent === 'undefined') {
+        showError('這個裝置可能沒有動作感測器<br>（例如桌面瀏覽器）<br>可在 Chrome DevTools Sensors 模擬，或按空白鍵測試');
+      }
+      window.addEventListener('devicemotion', handleMotion);
+      state.motionListening = true;
+    }
+
+    showScreen('screen-menu');
+  } catch (err) {
+    showError('初始化失敗：' + (err && err.message ? err.message : String(err)));
+  }
+}
+
+/* ========== 搖動偵測 ========== */
+function handleMotion(event) {
+  if (!state.currentInstrument) return;
+
+  // 用 acceleration（已扣除重力），不用 accelerationIncludingGravity
+  const acc = event.acceleration;
+  if (!acc || acc.x == null) return;
+
+  const mag = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
+  if (mag < SHAKE_THRESHOLD) return;
+
+  const now = performance.now();
+  const cooldown = INSTRUMENTS[state.currentInstrument].cooldown;
+  if (now - state.lastTriggerTime < cooldown) return;
+  state.lastTriggerTime = now;
+
+  // 搖動強度 → 音量 0.3 ~ 1.0
+  const volume = Math.min(1.0, Math.max(0.3, (mag - SHAKE_THRESHOLD) / 20 + 0.3));
+  triggerSound(volume);
+}
+
+function triggerSound(volume) {
+  playInstrument(state.currentInstrument, volume);
+  state.shakeCount++;
+  updateCounter();
+  visualFlash();
+}
+
+/* ========== Web Audio 音色合成 ========== */
+function createNoiseBuffer(ctx, duration) {
+  const len = Math.max(1, Math.floor(ctx.sampleRate * duration));
+  const buffer = ctx.createBuffer(1, len, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < len; i++) {
+    data[i] = Math.random() * 2 - 1;
+  }
+  return buffer;
+}
+
+function playInstrument(name, volume) {
+  const ctx = state.audioCtx;
+  if (!ctx) return;
+  if (ctx.state !== 'running') {
+    ctx.resume().catch(() => {});
+  }
+  const t0 = ctx.currentTime;
+  if (name === 'tambourine') playTambourine(ctx, t0, volume);
+  else if (name === 'triangle') playTriangle(ctx, t0, volume);
+  else if (name === 'shaker') playShaker(ctx, t0, volume);
+}
+
+function playTambourine(ctx, t, vol) {
+  // 白噪音 + bandpass 模擬鈴片摩擦
+  const noise = ctx.createBufferSource();
+  noise.buffer = createNoiseBuffer(ctx, 0.35);
+  const bp = ctx.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.frequency.value = 3500;
+  bp.Q.value = 2;
+  const gNoise = ctx.createGain();
+  gNoise.gain.setValueAtTime(vol * 0.55, t);
+  gNoise.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
+  noise.connect(bp).connect(gNoise).connect(ctx.destination);
+  noise.start(t);
+  noise.stop(t + 0.36);
+
+  // 兩個高頻 sine 模擬鈴片共鳴
+  [4000, 5500].forEach(freq => {
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(vol * 0.14, t + 0.002);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
+    osc.connect(g).connect(ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.32);
+  });
+}
+
+function playTriangle(ctx, t, vol) {
+  // 三個不相關高頻 sine，長殘響
+  [4000, 5500, 7300].forEach(freq => {
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(vol * 0.13, t + 0.002);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 2.0);
+    osc.connect(g).connect(ctx.destination);
+    osc.start(t);
+    osc.stop(t + 2.1);
+  });
+}
+
+function playShaker(ctx, t, vol) {
+  // 高通白噪音做沙沙聲
+  const noise = ctx.createBufferSource();
+  noise.buffer = createNoiseBuffer(ctx, 0.12);
+  const hp = ctx.createBiquadFilter();
+  hp.type = 'highpass';
+  hp.frequency.value = 4000;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(vol * 0.6, t + 0.005);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.08);
+  noise.connect(hp).connect(g).connect(ctx.destination);
+  noise.start(t);
+  noise.stop(t + 0.13);
+}
+
+/* ========== UI 更新 ========== */
+function selectInstrument(name) {
+  state.currentInstrument = name;
+  state.shakeCount = 0;
+  state.lastTriggerTime = 0;
+  document.getElementById('inst-name').textContent = INSTRUMENTS[name].name;
+  document.getElementById('inst-big').innerHTML = INSTRUMENTS[name].svg;
+  updateCounter();
+  showScreen('screen-play');
+}
+
+function updateCounter() {
+  document.getElementById('counter').textContent = `搖動 ${state.shakeCount} 次`;
+}
+
+function visualFlash() {
+  const app = document.getElementById('app');
+  const big = document.getElementById('inst-big');
+  app.classList.add('flash');
+  big.classList.add('pulse');
+  setTimeout(() => {
+    app.classList.remove('flash');
+    big.classList.remove('pulse');
+  }, 90);
+}
+
+/* ========== 事件綁定 ========== */
+document.getElementById('btn-start').addEventListener('click', handleStart);
+
+document.querySelectorAll('.instrument-card').forEach(card => {
+  card.addEventListener('click', () => selectInstrument(card.dataset.inst));
+});
+
+document.getElementById('btn-back').addEventListener('click', () => {
+  state.currentInstrument = null;
+  showScreen('screen-menu');
+});
+
+// 從背景回來時 resume AudioContext（iOS 特別容易進入 interrupted 狀態）
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && state.audioCtx && state.audioCtx.state !== 'running') {
+    state.audioCtx.resume().catch(() => {});
+  }
+});
+
+// 桌面測試：按空白鍵模擬搖動
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Space' && state.currentInstrument) {
+    e.preventDefault();
+    const now = performance.now();
+    const cd = INSTRUMENTS[state.currentInstrument].cooldown;
+    if (now - state.lastTriggerTime < cd) return;
+    state.lastTriggerTime = now;
+    triggerSound(0.85);
+  }
+});
+</script>
+</body>
+</html>
