@@ -383,6 +383,15 @@ function clearError() {
 async function handleStart() {
   clearError();
   try {
+    // 先嘗試把 audioSession 設為 'playback'，
+    // 這樣 iOS 17+ Safari 的 Web Audio 就不會被側面的靜音開關切掉
+    // （其他瀏覽器沒有這個 API 會被忽略）
+    try {
+      if (navigator.audioSession) {
+        navigator.audioSession.type = 'playback';
+      }
+    } catch (e) { /* ignore */ }
+
     // 1. 在 user gesture 內建立 AudioContext
     if (!state.audioCtx) {
       const AC = window.AudioContext || window.webkitAudioContext;
@@ -390,7 +399,7 @@ async function handleStart() {
         showError('你的瀏覽器不支援 Web Audio API');
         return;
       }
-      state.audioCtx = new AC();
+      state.audioCtx = new AC({ latencyHint: 'playback' });
     }
     if (state.audioCtx.state === 'suspended') {
       await state.audioCtx.resume();
