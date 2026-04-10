@@ -27,11 +27,7 @@
     align-items: center;
     justify-content: center;
     padding: 24px 20px 80px;
-    transition: background-color 80ms ease-out;
-  }
-
-  #app.flash {
-    background: #2a2a4e;
+    transition: background-color 220ms ease-out;
   }
 
   .screen {
@@ -551,6 +547,7 @@ function selectInstrument(name) {
   document.getElementById('inst-name').textContent = INSTRUMENTS[name].name;
   document.getElementById('inst-big').innerHTML = INSTRUMENTS[name].svg;
   updateCounter();
+  resetBackground();
   showScreen('screen-play');
 }
 
@@ -558,15 +555,37 @@ function updateCounter() {
   document.getElementById('counter').textContent = `搖動 ${state.shakeCount} 次`;
 }
 
+let lastHue = -1;
+
+function pickRandomHue() {
+  // 跟上次差至少 60 度，避免連續兩次顏色太接近看不出來
+  if (lastHue === -1) {
+    lastHue = Math.floor(Math.random() * 360);
+    return lastHue;
+  }
+  let hue;
+  for (let i = 0; i < 12; i++) {
+    hue = Math.floor(Math.random() * 360);
+    const diff = Math.min(Math.abs(hue - lastHue), 360 - Math.abs(hue - lastHue));
+    if (diff >= 60) break;
+  }
+  lastHue = hue;
+  return hue;
+}
+
 function visualFlash() {
   const app = document.getElementById('app');
   const big = document.getElementById('inst-big');
-  app.classList.add('flash');
+  // 亮度拉到最高、飽和度也最高，但避開純白（L=100 就沒顏色了）
+  const hue = pickRandomHue();
+  app.style.backgroundColor = `hsl(${hue}, 100%, 65%)`;
   big.classList.add('pulse');
-  setTimeout(() => {
-    app.classList.remove('flash');
-    big.classList.remove('pulse');
-  }, 90);
+  setTimeout(() => big.classList.remove('pulse'), 90);
+}
+
+function resetBackground() {
+  lastHue = -1;
+  document.getElementById('app').style.backgroundColor = '';
 }
 
 /* ========== 事件綁定 ========== */
@@ -578,6 +597,7 @@ document.querySelectorAll('.instrument-card').forEach(card => {
 
 document.getElementById('btn-back').addEventListener('click', () => {
   state.currentInstrument = null;
+  resetBackground();
   showScreen('screen-menu');
 });
 
